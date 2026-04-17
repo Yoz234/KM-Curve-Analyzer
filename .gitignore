@@ -44,3 +44,8 @@ report/*.log
 
 # Submission files (local only)
 DESCRIPTION.md
+
+# Report, PDFs, data files (local only)
+report/
+*.pdf
+*.csv
