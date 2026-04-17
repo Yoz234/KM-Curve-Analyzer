@@ -41,3 +41,6 @@ report/*.log
 # R artifacts
 .Rhistory
 .RData
+
+# Submission files (local only)
+DESCRIPTION.md
