@@ -98,11 +98,31 @@ export default function IndirectPage() {
   const [hrAB, setHrAB] = useState<HRInput | null>(null);
   const [hrBC, setHrBC] = useState<HRInput | null>(null);
 
+  // Demo pre-fill indicator
+  const [demoLoaded, setDemoLoaded] = useState(false);
+
   const [step, setStep] = useState<Step>("idle");
   const [indirect, setIndirect] = useState<IndirectResult | null>(null);
   const [error, setError] = useState("");
 
   const loading = ["loading_ab", "loading_bc", "loading_indirect"].includes(step);
+
+  function handleLoadDemo() {
+    // Published values:
+    //   FRESCO (Li 2018 JAMA): Fruquintinib vs Placebo, OS HR=0.57 (0.45–0.73)
+    //   CORRECT (Grothey 2013 Lancet): Regorafenib vs Placebo, OS HR=0.77 (0.64–0.94)
+    //     -> Placebo vs Regorafenib = 1/0.77=1.30 (CI: 1/0.94=1.06, 1/0.64=1.56)
+    setLabelA("Fruquintinib");
+    setLabelB("Placebo");
+    setLabelC("Regorafenib");
+    setHrAB({ hr: "0.57", lower: "0.45", upper: "0.73" });
+    setHrBC({ hr: "1.30", lower: "1.06", upper: "1.56" });
+    setDemoLoaded(true);
+    setIndirect(null);
+    setError("");
+    setStep("idle");
+    setMode("pubmed");
+  }
 
   async function handleUploadAnalyze() {
     if (!fileAB || !fileBC) return;
@@ -153,6 +173,52 @@ export default function IndirectPage() {
         </p>
       </div>
 
+      {/* Demo card */}
+      <div>
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+          Try a demo (no API key required)
+        </p>
+        <button
+          onClick={handleLoadDemo}
+          className={clsx(
+            "w-full text-left rounded-xl border p-4 transition-all",
+            demoLoaded
+              ? "border-primary bg-blue-50 ring-1 ring-primary"
+              : "border-slate-200 bg-white hover:border-slate-400 hover:shadow-sm"
+          )}
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">OS</span>
+            <span className="text-xs text-slate-400">mCRC 3rd-line · FRESCO × CORRECT</span>
+          </div>
+          <p className="font-semibold text-slate-800 text-sm">Fruquintinib vs Regorafenib (via Placebo)</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Pre-filled with published HR values — click Run to compute indirect comparison instantly
+          </p>
+          <div className="mt-2 flex gap-4 text-xs text-slate-400 font-mono">
+            <span>Fruq vs Placebo: 0.57 (0.45–0.73)</span>
+            <span>Placebo vs Rego: 1.30 (1.06–1.56)</span>
+          </div>
+        </button>
+      </div>
+
+      {/* Pre-fill confirmation */}
+      {demoLoaded && hrAB && hrBC && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-800 space-y-1">
+          <p className="font-semibold">Demo values loaded — labels and HRs pre-filled below.</p>
+          <p>Click <strong>Run Indirect Comparison</strong> to compute.</p>
+        </div>
+      )}
+
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center" aria-hidden>
+          <div className="w-full border-t border-slate-200" />
+        </div>
+        <div className="relative flex justify-center">
+          <span className="bg-slate-50 px-3 text-xs text-slate-400">or enter your own data</span>
+        </div>
+      </div>
+
       <ApiKeyBanner />
 
       {/* Treatment labels */}
@@ -166,7 +232,7 @@ export default function IndirectPage() {
               <input
                 className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
                 value={vals[t]}
-                onChange={(e) => setters[t](e.target.value)}
+                onChange={(e) => { setters[t](e.target.value); setDemoLoaded(false); }}
               />
             </div>
           );
@@ -184,7 +250,7 @@ export default function IndirectPage() {
               mode === m ? "border-primary text-primary" : "border-transparent text-slate-500 hover:text-slate-800"
             )}
           >
-            {m === "pubmed" ? "Search PubMed" : "Upload KM Images"}
+            {m === "pubmed" ? "Search PubMed / Enter HR" : "Upload KM Images"}
           </button>
         ))}
       </div>
@@ -215,23 +281,39 @@ export default function IndirectPage() {
         </div>
       )}
 
-      {/* PubMed mode */}
+      {/* PubMed / manual HR mode */}
       {mode === "pubmed" && (
         <div className="space-y-4">
-          <p className="text-xs text-slate-500">
-            Search for two trials sharing a common comparator ({labelB}).
-            Select the KM figure from each article — open-access figures load automatically; others require manual upload.
-          </p>
-
-          <ArticleSlot
-            label={`Article 1 — ${labelA} vs ${labelB}`}
-            onHR={(hr) => setHrAB(hr)}
-          />
-
-          <ArticleSlot
-            label={`Article 2 — ${labelB} vs ${labelC}`}
-            onHR={(hr) => setHrBC(hr)}
-          />
+          {/* Show pre-filled HR summary if demo loaded, else show ArticleSlots */}
+          {demoLoaded && hrAB && hrBC ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 text-sm">
+                <p className="font-semibold text-slate-700 mb-1">{labelA} vs {labelB}</p>
+                <p className="text-xs text-slate-500 mb-2">FRESCO trial (Li et al. JAMA 2018)</p>
+                <p className="font-mono text-slate-800">HR {hrAB.hr} (95% CI {hrAB.lower}–{hrAB.upper})</p>
+              </div>
+              <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 text-sm">
+                <p className="font-semibold text-slate-700 mb-1">{labelB} vs {labelC}</p>
+                <p className="text-xs text-slate-500 mb-2">CORRECT trial (Grothey et al. Lancet 2013, inverted)</p>
+                <p className="font-mono text-slate-800">HR {hrBC.hr} (95% CI {hrBC.lower}–{hrBC.upper})</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="text-xs text-slate-500">
+                Search for two trials sharing a common comparator ({labelB}).
+                Select the KM figure from each article — open-access figures load automatically; others require manual upload.
+              </p>
+              <ArticleSlot
+                label={`Article 1 — ${labelA} vs ${labelB}`}
+                onHR={(hr) => setHrAB(hr)}
+              />
+              <ArticleSlot
+                label={`Article 2 — ${labelB} vs ${labelC}`}
+                onHR={(hr) => setHrBC(hr)}
+              />
+            </>
+          )}
 
           <button
             onClick={handlePubmedAnalyze}
