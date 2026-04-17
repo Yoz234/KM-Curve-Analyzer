@@ -60,7 +60,7 @@ export default function KMChart({ curves, xLabel = "Time", title, medians }: KMC
     <Plot
       data={traces}
       layout={{
-        title: title ?? "Kaplan-Meier Survival Curves",
+        title: { text: title ?? "Kaplan-Meier Survival Curves" },
         xaxis: { title: xLabel, zeroline: false },
         yaxis: { title: "Survival Probability", range: [0, 1.05], zeroline: false },
         legend: { x: 0.7, y: 0.95 },
